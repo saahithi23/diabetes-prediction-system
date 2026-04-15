@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - HealthAnalytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .charts-wrapper { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
+        @media (min-width: 800px) { .charts-wrapper { grid-template-columns: 1fr 1fr; } }
+        .chart-box { background: var(--card-bg); backdrop-filter: var(--blur); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2); height: 380px;}
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="{{ url_for('home') }}" class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            HealthAnalytics
+        </a>
+        <div class="nav-links">
+            <a href="{{ url_for('home') }}">New Inference</a>
+            <span class="nav-user">{{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" style="color: var(--danger);">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 1400px;">
+        <div class="dashboard-title">
+            <h1>Command Center</h1>
+            <p style="color: var(--text-muted); font-size: 1.1rem;">Monitor your inference logs and distribution analytics.</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <h3>Total Inferences</h3>
+                <div class="value" style="color: #67e8f9;">{{ stats.total }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>High Risk Classifications</h3>
+                <div class="value" style="color: #fca5a5;">{{ stats.diabetic }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Low Risk Classifications</h3>
+                <div class="value" style="color: #6ee7b7;">{{ stats.non_diabetic }}</div>
+            </div>
+        </div>
+
+        <div class="charts-wrapper">
+            <div class="chart-box">
+                <canvas id="outcomeChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="modelChart"></canvas>
+            </div>
+        </div>
+
+        <div class="history-table-container">
+            <div class="history-header">
+                <h2 style="font-size: 1.25rem; color: #fff; font-weight: 600;">Inference Audit Log</h2>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Architecture Selected</th>
+                            <th>Data Vector (Vitals)</th>
+                            <th>Inference Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in predictions %}
+                        <tr>
+                            <td style="color: rgba(255,255,255,0.5);">{{ p.date_posted.strftime('%b %d, %Y %H:%M') }}</td>
+                            <td style="font-weight: 500; color: #fff;">{{ p.model_used }}</td>
+                            <td style="font-family: monospace; font-size: 0.85rem; color: rgba(255,255,255,0.7);">{{ p.input_data }}</td>
+                            <td>
+                                {% if 'not' in p.prediction_result.lower() or 'low risk' in p.prediction_result.lower() %}
+                                    <span class="badge success">Low Risk</span>
+                                {% else %}
+                                    <span class="badge danger">High Risk</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 4rem; color: rgba(255,255,255,0.4);">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><br>
+                                No historical inferences found. Run the engine to populate your logs.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        Chart.defaults.font.family = "'Outfit', sans-serif";
+        Chart.defaults.color = 'rgba(255, 255, 255, 0.6)';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+
+        const ctxOutcome = document.getElementById('outcomeChart').getContext('2d');
+        new Chart(ctxOutcome, {
+            type: 'doughnut',
+            data: {
+                labels: ['High Risk', 'Low Risk'],
+                datasets: [{
+                    data: [{{ stats.diabetic }}, {{ stats.non_diabetic }}],
+                    backgroundColor: ['rgba(239, 68, 68, 0.8)', 'rgba(16, 185, 129, 0.8)'],
+                    borderWidth: 2,
+                    borderColor: '#0f172a',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: 'Outcome Distribution', font: { size: 16, weight: '600' }, color: '#fff' },
+                    legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.7)' } }
+                },
+                cutout: '75%'
+            }
+        });
+
+        const ctxModel = document.getElementById('modelChart').getContext('2d');
+        new Chart(ctxModel, {
+            type: 'bar',
+            data: {
+                labels: ['PIMA RF', 'PIMA LR', 'PIMA DT', 'Lifestyle RF'],
+                datasets: [{
+                    data: [{{ stats.rf }}, {{ stats.lr }}, {{ stats.dt }}, {{ stats.lf }}],
+                    backgroundColor: [
+                        'rgba(6, 182, 212, 0.8)', 
+                        'rgba(56, 189, 248, 0.8)', 
+                        'rgba(125, 211, 252, 0.8)', 
+                        'rgba(139, 92, 246, 0.8)'
+                    ],
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: 'Architecture Utilization', font: { size: 16, weight: '600' }, color: '#fff' },
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { stepSize: 1, color: 'rgba(255,255,255,0.5)' } },
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

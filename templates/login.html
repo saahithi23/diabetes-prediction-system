@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - HealthAnalytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="auth-split">
+        <div class="auth-split-left">
+            <h1>Predictive AI<br>for Better Health.</h1>
+            <p>Empowering clinicians with machine-learning-driven diabetes risk assessment based on deep data insights and patient vitals.</p>
+        </div>
+        <div class="auth-split-right">
+            <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
+                <div class="card-header" style="margin-bottom: 2rem;">
+                    <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom: 20px;">
+                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    </div>
+                    <h1 style="font-size: 1.8rem;">Welcome Back</h1>
+                    <p>Please enter your credentials to continue.</p>
+                </div>
+
+                <div class="flash-messages">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+                </div>
+
+                <form action="{{ url_for('login') }}" method="post">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="admin" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn" style="margin-top: 1rem; padding: 1rem; width: 100%;">Authenticate</button>
+                </form>
+                
+                <p style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.95rem;">
+                    Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Request Access</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

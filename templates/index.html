@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inference - HealthAnalytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="nav">
+        <a href="{{ url_for('home') }}" class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            HealthAnalytics
+        </a>
+        <div class="nav-links">
+            <a href="{{ url_for('dashboard') }}">Analytics Dashboard</a>
+            <span class="nav-user">{{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" style="color: var(--danger);">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card" style="max-width: 800px;">
+            <div class="card-header">
+                <h1>Clinical Risk Assessment</h1>
+                <p>Run a real-time machine learning inference based on patient vitals.</p>
+            </div>
+
+            <div class="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+            </div>
+
+            <form action="{{ url_for('predict') }}" method="post">
+                <div class="form-grid" style="margin-bottom: 2rem; background: rgba(0,0,0,0.15); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Data Profiler (Dataset)</label>
+                        <select name="dataset_choice" id="dataset-choice" class="form-control" onchange="toggleForm()" required style="background-color: rgba(255,255,255,0.05);">
+                            <option value="pima" {% if dataset_choice == 'pima' or not dataset_choice %}selected{% endif %}>Basic Medical Profile (PIMA)</option>
+                            <option value="lifestyle" {% if dataset_choice == 'lifestyle' %}selected{% endif %}>Lifestyle & Behavioral Profile</option>
+                        </select>
+                    </div>
+
+                    <div id="pima-model-select" class="form-group" style="margin-bottom: 0;">
+                        <label>Inference Architecture</label>
+                        <select name="model_choice_pima" class="form-control" style="background-color: rgba(255,255,255,0.05);">
+                            <option value="Random Forest (PIMA)" {% if selected_model == 'Random Forest (PIMA)' %}selected{% endif %}>Random Forest (Ensemble)</option>
+                            <option value="Logistic Regression (PIMA)" {% if selected_model == 'Logistic Regression (PIMA)' %}selected{% endif %}>Logistic Regression (Linear)</option>
+                            <option value="Decision Tree (PIMA)" {% if selected_model == 'Decision Tree (PIMA)' %}selected{% endif %}>Decision Tree (Tree-based)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="pima-form">
+                    <h3 style="margin-bottom: 1rem; color: #fff; font-size: 1.2rem;">Biometric Vitals</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Pregnancies</label>
+                            <input type="number" step="any" name="Pregnancies" class="form-control" placeholder="e.g. 0">
+                        </div>
+                        <div class="form-group">
+                            <label>Glucose Level (mg/dL)</label>
+                            <input type="number" step="any" name="Glucose" class="form-control" placeholder="e.g. 120">
+                        </div>
+                        <div class="form-group">
+                            <label>Blood Pressure (mm Hg)</label>
+                            <input type="number" step="any" name="BloodPressure" class="form-control" placeholder="e.g. 70">
+                        </div>
+                        <div class="form-group">
+                            <label>Skin Thickness (mm)</label>
+                            <input type="number" step="any" name="SkinThickness" class="form-control" placeholder="e.g. 20">
+                        </div>
+                        <div class="form-group">
+                            <label>Insulin (IU/mL)</label>
+                            <input type="number" step="any" name="Insulin" class="form-control" placeholder="e.g. 79">
+                        </div>
+                        <div class="form-group">
+                            <label>BMI</label>
+                            <input type="number" step="any" name="BMI" class="form-control" placeholder="e.g. 25.4">
+                        </div>
+                        <div class="form-group">
+                            <label>Diabetes Pedigree Function</label>
+                            <input type="number" step="any" name="DiabetesPedigreeFunction" class="form-control" placeholder="e.g. 0.5">
+                        </div>
+                        <div class="form-group">
+                            <label>Age</label>
+                            <input type="number" step="any" name="Age" class="form-control" placeholder="e.g. 33">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lifestyle-form" style="display: none;">
+                    <h3 style="margin-bottom: 1rem; color: #fff; font-size: 1.2rem;">Lifestyle Factors</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>High Blood Pressure</label>
+                            <select name="HighBP" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>High Cholesterol</label>
+                            <select name="HighChol" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>BMI</label>
+                            <input type="number" step="any" name="BMI" class="form-control" placeholder="e.g. 25.0">
+                        </div>
+                        <div class="form-group">
+                            <label>Smoker</label>
+                            <select name="Smoker" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Heart Disease / Attack</label>
+                            <select name="HeartDiseaseorAttack" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Physical Activity (Past 30 Days)</label>
+                            <select name="PhysActivity" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>General Health Rating (1=Best, 5=Worst)</label>
+                            <input type="number" step="1" min="1" max="5" name="GenHlth" class="form-control" placeholder="1 to 5">
+                        </div>
+                        <div class="form-group">
+                            <label>Age Bracket (1=18-24 ... 13=80+)</label>
+                            <input type="number" step="1" min="1" max="13" name="Age" class="form-control" placeholder="1 to 13">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" style="margin-top: 2rem;">Execute Inference Engine</button>
+            </form>
+
+            {% if prediction_text %}
+            <div class="result-box {% if 'not' in prediction_text or 'low risk' in prediction_text %}healthy{% else %}diabetic{% endif %}" style="animation: pulse-glow 2s infinite;">
+                <h2>{{ prediction_text | title }}</h2>
+                <p>Prediction confidence derived via <strong>{{ selected_model }}</strong></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function toggleForm() {
+            var choice = document.getElementById('dataset-choice').value;
+            var pimaForm = document.getElementById('pima-form');
+            var pimaModelSelect = document.getElementById('pima-model-select');
+            var lifestyleForm = document.getElementById('lifestyle-form');
+            
+            var pimaInputs = pimaForm.querySelectorAll('input, select');
+            var lifestyleInputs = lifestyleForm.querySelectorAll('input, select');
+            var pimaModelSelectInput = pimaModelSelect.querySelector('select');
+
+            if (choice === 'pima') {
+                pimaForm.style.display = 'block';
+                pimaModelSelect.style.display = 'block';
+                lifestyleForm.style.display = 'none';
+
+                pimaInputs.forEach(input => input.setAttribute('required', 'required'));
+                pimaModelSelectInput.setAttribute('required', 'required');
+                lifestyleInputs.forEach(input => input.removeAttribute('required'));
+            } else {
+                pimaForm.style.display = 'none';
+                pimaModelSelect.style.display = 'none';
+                lifestyleForm.style.display = 'block';
+
+                lifestyleInputs.forEach(input => input.setAttribute('required', 'required'));
+                pimaInputs.forEach(input => input.removeAttribute('required'));
+                pimaModelSelectInput.removeAttribute('required');
+            }
+        }
+        
+        window.onload = function() {
+            toggleForm();
+            
+            
+        };
+    </script>
+</body>
+</html>
