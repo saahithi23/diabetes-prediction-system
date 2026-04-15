@@ -16,3 +16,9 @@ instance/
 .vscode/
 .idea/
 .DS_Store
+
+# Model files
+*.pkl
+
+# Ignore only large dataset folder
+health_dataset/
