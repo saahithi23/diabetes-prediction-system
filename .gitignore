@@ -18,7 +18,7 @@ instance/
 .DS_Store
 
 # Model files
-*.pkl
+# *.pkl (Removing this so that your pre-trained models upload to GitHub!)
 
 # Ignore only large dataset folder
 health_dataset/

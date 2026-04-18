@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - HealthAnalytics</title>
+    <title>Set New Password - HealthAnalytics</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -18,8 +18,8 @@
                     <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom: 20px;">
                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     </div>
-                    <h1 style="font-size: 1.8rem;">Create Profile</h1>
-                    <p>Initialize your clinical practitioner account.</p>
+                    <h1 style="font-size: 1.8rem;">Set New Password</h1>
+                    <p>Enter your new secure password below.</p>
                 </div>
 
                 <div class="flash-messages">
@@ -32,25 +32,17 @@
                     {% endwith %}
                 </div>
 
-                <form action="{{ url_for('register') }}" method="post">
+                <form action="" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="form-group">
-                        <label>Provider Username</label>
-                        <input type="text" name="username" class="form-control" placeholder="Dr. Smith" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" name="email" class="form-control" placeholder="dr.smith@clinic.com" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Secure Password</label>
+                        <label>New Secure Password</label>
                         <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                     </div>
-                    <button type="submit" class="btn" style="margin-top: 1rem; padding: 1rem; width: 100%;">Create Account</button>
+                    <button type="submit" class="btn" style="margin-top: 1rem; padding: 1rem; width: 100%;">Update Password</button>
                 </form>
                 
                 <p style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.95rem;">
-                    Already have access? <a href="{{ url_for('login') }}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Sign in here</a>
+                    Remember your password? <a href="{{ url_for('login') }}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Back to Sign In</a>
                 </p>
             </div>
         </div>

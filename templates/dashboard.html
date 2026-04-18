@@ -56,8 +56,9 @@
         </div>
 
         <div class="history-table-container">
-            <div class="history-header">
-                <h2 style="font-size: 1.25rem; color: #fff; font-weight: 600;">Inference Audit Log</h2>
+            <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="font-size: 1.25rem; color: #fff; font-weight: 600; margin: 0;">Inference Audit Log</h2>
+                <a href="{{ url_for('export_history') }}" class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Export to CSV</a>
             </div>
             <div class="table-wrapper">
                 <table class="table">

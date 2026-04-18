@@ -2,6 +2,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 import pickle
 import time
 
@@ -29,7 +31,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 print("Training Random Forest model on Health Indicators dataset...")
 start = time.time()
-rf = RandomForestClassifier(n_estimators=20, max_depth=10, random_state=42)
+rf = make_pipeline(StandardScaler(), RandomForestClassifier(n_estimators=20, max_depth=10, random_state=42))
 rf.fit(X_train, y_train)
 end = time.time()
 
@@ -39,8 +41,8 @@ acc = accuracy_score(y_test, y_pred)
 print(f"Training completed in {end - start:.2f} seconds")
 print(f"Accuracy with 8 selected features: {acc * 100:.2f}%")
 
-print("Saving model to rf_health_model.pkl...")
-with open("rf_health_model.pkl", "wb") as f:
+print("Saving model to models/rf_health_model.pkl...")
+with open("models/rf_health_model.pkl", "wb") as f:
     pickle.dump(rf, f)
 
 print("Model saved successfully.")

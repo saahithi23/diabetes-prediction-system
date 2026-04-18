@@ -1,18 +1,39 @@
 import numpy as np
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, make_response
+import csv
+import io
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 import pickle
 import os
 from datetime import datetime
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer
+from dotenv import load_dotenv
+
+# Load environment variables from .env file directly into os.environ
+load_dotenv()
 
 app = Flask(__name__)
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect(app)
 # Secret key for session management and flash messages
-app.config['SECRET_KEY'] = '5f352379324c2246ce5982'
-# SQLite database setup
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///diabetes_app.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or '5f352379324c2246ce5982'
+# Database Setup (Supports Production Postgres URL or local SQLite)
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///diabetes_app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Mail configuration
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('EMAIL_USER')
+app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASS')
+mail = Mail(app)
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -22,10 +43,10 @@ login_manager.login_message_category = 'info'
 
 # Load the trained models
 try:
-    rf_model = pickle.load(open('rf_model.pkl', 'rb'))
-    lr_model = pickle.load(open('lr_model.pkl', 'rb'))
-    dt_model = pickle.load(open('dt_model.pkl', 'rb'))
-    rf_health_model = pickle.load(open('rf_health_model.pkl', 'rb'))
+    rf_model = pickle.load(open('models/rf_model.pkl', 'rb'))
+    lr_model = pickle.load(open('models/lr_model.pkl', 'rb'))
+    dt_model = pickle.load(open('models/dt_model.pkl', 'rb'))
+    rf_health_model = pickle.load(open('models/rf_health_model.pkl', 'rb'))
     
     models = {
         'Random Forest (PIMA)': rf_model,
@@ -41,9 +62,23 @@ except Exception as e:
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(60), nullable=False)
     # Relationship to prediction history
     predictions = db.relationship('PredictionHistory', backref='author', lazy=True)
+
+    def get_reset_token(self):
+        s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):
+        s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except:
+            return None
+        return User.query.get(user_id)
 
 class PredictionHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,13 +100,14 @@ def register():
         return redirect(url_for('home'))
     if request.method == 'POST':
         username = request.form.get('username')
+        email = request.form.get('email')
         password = request.form.get('password')
-        if not username or not password:
-            flash('Username and password are required!', 'danger')
+        if not username or not email or not password:
+            flash('Username, email, and password are required!', 'danger')
             return redirect(url_for('register'))
             
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        user = User(username=username, password=hashed_password)
+        user = User(username=username, email=email, password=hashed_password)
         db.session.add(user)
         try:
             db.session.commit()
@@ -103,6 +139,61 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+def send_reset_email(user):
+    token = user.get_reset_token()
+    reset_url = url_for('reset_token', token=token, _external=True)
+    
+    if not app.config['MAIL_USERNAME']:
+        print("\n\n" + "="*50)
+        print("SIMULATED EMAIL SENT (No MAIL_USERNAME configured)")
+        print(f"To: {user.email}")
+        print(f"Subject: Password Reset Request")
+        print(f"Body: \nTo reset your password, visit the following link:\n{reset_url}")
+        print("="*50 + "\n\n")
+        return
+
+    msg = Message('Password Reset Request', sender='noreply@healthanalytics.com', recipients=[user.email])
+    msg.body = f'''To reset your password, visit the following link:
+{reset_url}
+
+If you did not make this request then simply ignore this email and no changes will be made.
+'''
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+@app.route("/reset_password", methods=['GET', 'POST'])
+def reset_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            send_reset_email(user)
+        flash('If an account exists with that email, an email has been sent with instructions to reset your password.', 'info')
+        return redirect(url_for('login'))
+    return render_template('reset_request.html')
+
+@app.route("/reset_password/<token>", methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('That is an invalid or expired token', 'warning')
+        return redirect(url_for('reset_request'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        user.password = hashed_password
+        db.session.commit()
+        flash('Your password has been updated! You are now able to log in', 'success')
+        return redirect(url_for('login'))
+    return render_template('reset_token.html')
 
 @app.route('/')
 @app.route('/home')
@@ -139,6 +230,18 @@ def predict():
     else:
         result_text = "low risk of diabetes"
 
+    explanation = ""
+    try:
+        model_core = selected_model.named_steps['classifier'] if hasattr(selected_model, 'named_steps') else selected_model
+        if hasattr(model_core, 'feature_importances_'):
+            importances = model_core.feature_importances_
+            feature_imp = list(zip(feature_names, importances))
+            feature_imp.sort(key=lambda x: x[1], reverse=True)
+            top_3 = [f[0] for f in feature_imp[:3]]
+            explanation = f"Top Contributing Factors: {', '.join(top_3)}."
+    except Exception as e:
+        pass
+
     # Save to database history
     input_str = ", ".join([str(x) for x in int_features])
     history_record = PredictionHistory(
@@ -150,7 +253,7 @@ def predict():
     db.session.add(history_record)
     db.session.commit()
 
-    return render_template('index.html', prediction_text=f'Patient has a {result_text}.', selected_model=selected_model_name, dataset_choice=dataset_choice)
+    return render_template('index.html', prediction_text=f'Patient has a {result_text}.', explanation=explanation, selected_model=selected_model_name, dataset_choice=dataset_choice)
 
 @app.route('/dashboard')
 @login_required
@@ -176,6 +279,23 @@ def dashboard():
     }
     return render_template('dashboard.html', predictions=predictions, stats=stats)
 
+@app.route('/export_history')
+@login_required
+def export_history():
+    predictions = PredictionHistory.query.filter_by(user_id=current_user.id).order_by(PredictionHistory.date_posted.desc()).all()
+    
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Date', 'Model Used', 'Input Data', 'Result'])
+    
+    for p in predictions:
+        cw.writerow([p.date_posted.strftime('%Y-%m-%d %H:%M:%S'), p.model_used, p.input_data, p.prediction_result])
+        
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=medical_history_report.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
 @app.route('/predict_api',methods=['POST'])
 def predict_api():
     '''
@@ -189,4 +309,4 @@ def predict_api():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # Create database tables if they don't exist
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')

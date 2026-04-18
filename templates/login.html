@@ -9,8 +9,8 @@
 <body>
     <div class="auth-split">
         <div class="auth-split-left">
-            <h1>Predictive AI<br>for Better Health.</h1>
-            <p>Empowering clinicians with machine-learning-driven diabetes risk assessment based on deep data insights and patient vitals.</p>
+            <h1>Data-Driven<br>Diabetes Risk Prediction.</h1>
+            <p>Analyze patient data to identify diabetes risk early and improve outcomes.</p>
         </div>
         <div class="auth-split-right">
             <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
@@ -33,13 +33,17 @@
                 </div>
 
                 <form action="{{ url_for('login') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="form-group">
                         <label>Username</label>
                         <input type="text" name="username" class="form-control" placeholder="admin" required>
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label style="margin-bottom:0;">Password</label>
+                            <a href="{{ url_for('reset_request') }}" style="color:var(--primary); text-decoration:none; font-size:0.85rem; font-weight:600;">Forgot Password?</a>
+                        </div>
+                        <input type="password" name="password" class="form-control" placeholder="••••••••" required style="margin-top: 0.5rem;">
                     </div>
                     <button type="submit" class="btn" style="margin-top: 1rem; padding: 1rem; width: 100%;">Authenticate</button>
                 </form>

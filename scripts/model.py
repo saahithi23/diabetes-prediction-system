@@ -7,9 +7,11 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 # Importing the dataset and dropping duplicates to fix data leakage
-dataset = pd.read_csv('diabetes3.csv').drop_duplicates()
+dataset = pd.read_csv('data/diabetes3.csv').drop_duplicates()
 X = dataset.iloc[:, [0,1,2,3,4,5,6,7]].values
 y = dataset.iloc[:, 8].values
 
@@ -28,29 +30,29 @@ def evaluate_model(model_name, y_test, y_pred, start, end):
 
 # 1. Random Forest
 start_rf = time()
-rf_classifier = RandomForestClassifier(n_estimators=50, max_depth=8, criterion='entropy', random_state=72)
+rf_classifier = make_pipeline(StandardScaler(), RandomForestClassifier(n_estimators=50, max_depth=8, criterion='entropy', random_state=72))
 rf_classifier.fit(X_train, y_train)
 rf_pred = rf_classifier.predict(X_test)
 end_rf = time()
 evaluate_model("Random Forest", y_test, rf_pred, start_rf, end_rf)
-pickle.dump(rf_classifier, open("rf_model.pkl", "wb"))
+pickle.dump(rf_classifier, open("models/rf_model.pkl", "wb"))
 
 # 2. Logistic Regression
 start_lr = time()
-lr_classifier = LogisticRegression(max_iter=1000, random_state=72)
+lr_classifier = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, random_state=72))
 lr_classifier.fit(X_train, y_train)
 lr_pred = lr_classifier.predict(X_test)
 end_lr = time()
 evaluate_model("Logistic Regression", y_test, lr_pred, start_lr, end_lr)
-pickle.dump(lr_classifier, open("lr_model.pkl", "wb"))
+pickle.dump(lr_classifier, open("models/lr_model.pkl", "wb"))
 
 # 3. Decision Tree
 start_dt = time()
-dt_classifier = DecisionTreeClassifier(max_depth=5, criterion='entropy', random_state=72)
+dt_classifier = make_pipeline(StandardScaler(), DecisionTreeClassifier(max_depth=5, criterion='entropy', random_state=72))
 dt_classifier.fit(X_train, y_train)
 dt_pred = dt_classifier.predict(X_test)
 end_dt = time()
 evaluate_model("Decision Tree", y_test, dt_pred, start_dt, end_dt)
-pickle.dump(dt_classifier, open("dt_model.pkl", "wb"))
+pickle.dump(dt_classifier, open("models/dt_model.pkl", "wb"))
 
 print("All models trained and saved successfully.")
